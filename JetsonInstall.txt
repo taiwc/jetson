@@ -19,7 +19,8 @@ cd ~/jetson-inference/build          # omit if pwd is already /build from above
 make
 sudo make install
 
-cd jetson-inference/build/aarch64/bin
+cd ~/jetson-inference/build/aarch64/bin
+sudo ldconfig # implement link to the Python interface
 
 ./imagenet-console --network=googlenet orange_0.jpg output_0.jpg  # --network flag is optional
 ./imagenet-console.py --network=googlenet orange_0.jpg output_0.jpg  # --network flag is optional
@@ -39,6 +40,7 @@ cd jetson-inference/build/aarch64/bin
 cd ~/jetson-inference/build
 ./install-pytorch.sh
 
+#--- some small tools ------------------------------------
 git clone https://github.com/rbonghi/jetson_stats.git
 cd jetson_stats/
 sudo ./install_jetson_stats.sh –s
@@ -49,17 +51,130 @@ sudo jtop
 jetson_release
 
 
+#--------------------------------------------------------
 #2019.07.27 ROS Install
+#https://www.stereolabs.com/blog/ros-and-nvidia-jetson-nano/
 
 sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
 sudo apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654
 sudo apt update
 sudo apt install ros-melodic-desktop
 
+sudo rosdep init 
+rosdep update
+
+#when you execute a new shell session. Update your .bashrc script:
+echo "source /opt/ros/melodic/setup.bash" >> ~/.bashrc 
+source ~/.bashrc
+
+#Configure a catkin workspace
+sudo apt-get install cmake python-catkin-pkg python-empy python-nose python-setuptools libgtest-dev python-rosinstall python-rosinstall-generator python-wstool build-essential git
+
+mkdir -p ~/catkin_ws/src 
+cd ~/catkin_ws/
+catkin_make
+echo "source ~/catkin_ws/devel/setup.bash" >> ~/.bashrc 
+source ~/.bashrc
+
+#----- Getting Started with ZED stereo camera on Jetson Nano ----------
+cd ~/catkin_ws/src
+git clone https://github.com/stereolabs/zed-ros-wrapper.git
+cd ~/catkin_ws
+#verifies the declared dependencies, automatically installing the missing ones
+rosdep install --from-paths src --ignore-src -r -y
+catkin_make -DCMAKE_BUILD_TYPE=Release
+
+#------------------------------------------------------------------------
+#https://devtalk.nvidia.com/default/topic/1056075/jetson-nano-and-qt5/
+wget http://master.qt.io/archive/qt/5.9/5.9.2/single/qt-everywhere-opensource-src-5.9.2.tar.xz
+
+#Some users suggest to install below libraries before configure.
+#https://wiki.qt.io/Building_Qt_5_from_Git 
+
+#https://doc.qt.io/QtForDeviceCreation/qtee-requirements-x11.html
+sudo apt-get install build-essential python2.7 libusb-1.0-0
+echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="dbdb", TAG+="udev-acl", TAG+="uaccess"' | sudo tee -a /etc/udev/rules.d/70-boot2qt.rules
+wget -q http://download.virtualbox.org/virtualbox/debian/oracle_vbox.asc -O- | sudo apt-key add -
+echo "deb http://download.virtualbox.org/virtualbox/debian $(lsb_release -sc) contrib" | sudo tee /etc/apt/sources.list.d/virtualbox.list
+sudo apt-get update
+sudo apt-get install virtualbox-4.3
+
+sudo apt-get build-dep qt5-default
+sudo apt-get install libxcb-xinerama0-dev 
+
+ untar qt tarbell
+tar -xpf qt-everywhere-opensource-src-5.9.2.tar.xz
+cd qt-everywhere-opensource-src-5.9.2
+./configure
+
+#Choose "o" when the prompt asks which version of Qt you want to install. 
+#Check if EGL and EGLFS is enabled 
+#EGL .................................... yes
+#OpenVG ................................. no
+#QPA backends:
+#DirectFB ............................... no
+#EGLFS .................................. yes
+#EGLFS details:
+#EGLFS i.Mx6 .......................... no
+#EGLFS i.Mx6 Wayland .................. no
+#EGLFS EGLDevice ...................... yes
+#EGLFS GBM ............................ no
+#EGLFS Mali ........................... no
+#EGLFS Raspberry Pi ................... no
+#EGL on X11 ........................... yes
+
+make -j4 
+sudo make install
 
 
+#------------------------------------------------------------------
+#https://makerpro.cc/2019/06/how-to-make-jetson-nano-perform-cuda-in-opencv4-1-0-smoothly/
+sudo nano /usr/share/glib-2.0/schemas/org.gnome.Vino.gschema.xml
 
+#Add following line ----------------------
+<key name='enabled' type='b'>
+<summary>Enable remote access to the desktop</summary>
+<description>
+If true, allows remote access to the desktop via the RFB
+protocol. Users on remote machines may then connect to the
+desktop using a VNC viewer.
+</description>
+<default>false</default>
+</key>
+#-----------------------------------------
 
+sudo glib-compile-schemas /usr/share/glib-2.0/schemas
+
+# add Vino Server for VNC server
+
+gsettings set org.gnome.Vino require-encryption false
+gsettings set org.gnome.Vino prompt-enabled false
+sudo reboot
+
+sudo apg-get install nmap
+nmap 192.168.2.100
+#switch screen resolution fixed
+sudo xrandr --fb 1280x960
+
+#increase SWAP size
+mkdir ~/swap/
+cd ~/swap/
+fallocate -l 4G swapfile
+ls -lh swapfile
+sudo chmod 600 swapfile
+ls -lh swapfile
+sudo mkswap swapfile
+sudo swapon swapfile
+swapon -s
+
+#Auto setup after reboot
+sudo nano /etc/fstab
+# Add following line	
+# /home/ubuntu/swap/swapfile none swap sw 0 0
+
+#https://github.com/OmniXRI/Jetson_Nano_OpenCV410_QT5/blob/master/JetsonNano_OpenCV410_QT5_CUDA_Install.sh
+
+########################### some backup notes #####################
 sudo apt-get install git cmake
 $ sudo apt-get install libatlas-base-dev gfortran
 $ sudo apt-get install libhdf5-serial-dev hdf5-tools

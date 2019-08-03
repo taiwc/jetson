@@ -2,8 +2,34 @@
 #2019.07.25 Jetson Nano Install from 07.16 Image
 #https://github.com/dusty-nv/jetson-inference/blob/master/docs/building-repo-2.md
 
+sudo apt-get install git cmake -y
+sudo apt-get install libatlas-base-dev gfortran -y
+sudo apt-get install libhdf5-serial-dev hdf5-tools -y
+sudo apt-get install python3-dev -y
+wget https://bootstrap.pypa.io/get-pip.py
+sudo python3 get-pip.py
+rm get-pip.py
+sudo pip install virtualenv virtualenvwrapper
+nano ~/.bashrc
+# virtualenv and virtualenvwrapper
+export WORKON_HOME=$HOME/.virtualenvs
+export VIRTUALENVWRAPPER_PYTHON=/usr/bin/python3
+source /usr/local/bin/virtualenvwrapper.sh
+source ~/.bashrc
+
+mkvirtualenv AI -p python3
+workon AI
+
 sudo apt-get update
 sudo apt-get upgrade
+sudo apt-get install virtualenv -y
+mkdir envs
+cd envs
+virtualenv –p python3 AI
+source ~/envs/AI/bin/activate
+echo ' source ~/envs/AI/bin/activate ' >> ~/.bashrc
+sudo find / -name "cv2*"
+
 
 sudo apt-get install git cmake
 git clone https://github.com/dusty-nv/jetson-inference
